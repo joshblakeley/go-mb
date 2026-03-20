@@ -72,6 +72,9 @@ func (c *Config) Validate() error {
 	if c.Duration <= 0 {
 		return errors.New("duration must be positive")
 	}
+	if c.WarmupDuration < 0 {
+		return errors.New("warmup-duration must be >= 0")
+	}
 	if c.ReportInterval <= 0 {
 		return errors.New("report-interval must be positive")
 	}

@@ -54,3 +54,19 @@ func TestValidateDuration(t *testing.T) {
 		t.Error("expected error for non-positive duration")
 	}
 }
+
+func TestValidateReportInterval(t *testing.T) {
+	cfg := config.Default()
+	cfg.ReportInterval = -1 * time.Second
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for non-positive report-interval")
+	}
+}
+
+func TestValidateWarmupDuration(t *testing.T) {
+	cfg := config.Default()
+	cfg.WarmupDuration = -1 * time.Second
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for negative warmup-duration")
+	}
+}
