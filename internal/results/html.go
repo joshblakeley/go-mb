@@ -90,12 +90,13 @@ func WriteHTML(run *Run, path string) error {
 	if err != nil {
 		return fmt.Errorf("create report file: %w", err)
 	}
-	defer f.Close()
 
 	if err := tmpl.Execute(f, vars); err != nil {
+		f.Close()
+		os.Remove(path)
 		return fmt.Errorf("render template: %w", err)
 	}
-	return nil
+	return f.Close()
 }
 
 const reportTemplate = `<!DOCTYPE html>
@@ -103,7 +104,7 @@ const reportTemplate = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <title>go-bench Report</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
 * { box-sizing: border-box; }
 body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 0 auto; padding: 24px; color: #222; }
