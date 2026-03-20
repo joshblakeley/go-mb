@@ -32,7 +32,8 @@ func newRunCommand() *cobra.Command {
 		Use:   "run",
 		Short: "Run a benchmark against a Kafka/Redpanda cluster",
 		Example: `  bench run --brokers localhost:9092 --producers 4 --consumers 4 --partitions 16 --duration 60s
-  bench run --brokers broker1:9092,broker2:9092 --message-size 4096 --rate 50000 --duration 5m`,
+  bench run --brokers broker1:9092,broker2:9092 --message-size 4096 --rate 50000 --duration 5m
+  bench run --brokers localhost:9092 --duration 60s --output report.html`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg.Brokers = strings.Split(brokersFlag, ",")
 			return bench.Run(context.Background(), &cfg)
