@@ -21,6 +21,7 @@ type Config struct {
 	ConsumerGroup     string
 	CreateTopic       bool
 	DeleteTopic       bool
+	OutputFile        string // path to write HTML report; empty means disabled
 }
 
 // Default returns a Config with sensible defaults matching OMB workload defaults.

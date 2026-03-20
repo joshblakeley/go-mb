@@ -54,6 +54,7 @@ func newRunCommand() *cobra.Command {
 	f.StringVar(&cfg.ConsumerGroup, "consumer-group", cfg.ConsumerGroup, "Consumer group ID")
 	f.BoolVar(&cfg.CreateTopic, "create-topic", cfg.CreateTopic, "Create topic before benchmark")
 	f.BoolVar(&cfg.DeleteTopic, "delete-topic", cfg.DeleteTopic, "Delete topic after benchmark")
+	f.StringVar(&cfg.OutputFile, "output", cfg.OutputFile, "path to write HTML report (e.g. report.html; empty = disabled)")
 
 	return cmd
 }

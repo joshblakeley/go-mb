@@ -15,6 +15,7 @@ import (
 	"github.com/redpanda-data/go-bench/internal/metrics"
 	"github.com/redpanda-data/go-bench/internal/producer"
 	"github.com/redpanda-data/go-bench/internal/reporter"
+	"github.com/redpanda-data/go-bench/internal/results"
 	"github.com/redpanda-data/go-bench/internal/topic"
 )
 
@@ -76,6 +77,8 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	defer runCancel()
 
 	var wg sync.WaitGroup
+	benchmarkStart := time.Now()
+	var points []results.DataPoint
 
 	// Reporter goroutine.
 	wg.Add(1)
@@ -91,6 +94,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 				lastTick = t
 				snap := rec.Snapshot()
 				reporter.PrintPeriod(snap, elapsed)
+				points = append(points, results.DataPointFromSnapshot(snap, elapsed, time.Since(benchmarkStart).Seconds()))
 			case <-runCtx.Done():
 				return
 			}
@@ -103,6 +107,20 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	// 5. Final report.
 	fmt.Println()
 	reporter.PrintFinal(rec.Cumulative())
+
+	// HTML report (optional).
+	if cfg.OutputFile != "" {
+		run := results.Run{
+			Meta:    results.RunMetaFromConfig(cfg, benchmarkStart),
+			Points:  points,
+			Summary: results.FinalSummaryFromSnapshot(rec.Cumulative()),
+		}
+		if err := results.WriteHTML(&run, cfg.OutputFile); err != nil {
+			fmt.Printf("Warning: failed to write report: %v\n", err)
+		} else {
+			fmt.Printf("Report written to %s\n", cfg.OutputFile)
+		}
+	}
 
 	// 6. Cleanup.
 	if cfg.DeleteTopic {
