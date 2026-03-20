@@ -91,10 +91,12 @@ func WriteHTML(run *Run, path string) error {
 		return fmt.Errorf("create report file: %w", err)
 	}
 
-	if err := tmpl.Execute(f, vars); err != nil {
+	if execErr := tmpl.Execute(f, vars); execErr != nil {
 		f.Close()
-		os.Remove(path)
-		return fmt.Errorf("render template: %w", err)
+		if rerr := os.Remove(path); rerr != nil {
+			return fmt.Errorf("render template: %w; also failed to remove partial file: %v", execErr, rerr)
+		}
+		return fmt.Errorf("render template: %w", execErr)
 	}
 	return f.Close()
 }
