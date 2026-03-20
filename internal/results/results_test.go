@@ -1,6 +1,9 @@
 package results_test
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -117,5 +120,69 @@ func TestRunMetaFromConfig(t *testing.T) {
 	}
 	if !meta.Timestamp.Equal(ts) {
 		t.Errorf("Timestamp = %v, want %v", meta.Timestamp, ts)
+	}
+}
+
+func TestWriteHTMLCreatesFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "report.html")
+
+	run := &results.Run{
+		Meta: results.RunMeta{
+			Brokers:        []string{"localhost:9092"},
+			Topic:          "test-topic",
+			Producers:      2,
+			Consumers:      2,
+			MessageSize:    1024,
+			Duration:       30 * time.Second,
+			ReportInterval: 5 * time.Second,
+			Timestamp:      time.Date(2026, 3, 20, 12, 0, 0, 0, time.UTC),
+		},
+		Points: []results.DataPoint{
+			{ElapsedSecs: 5.0, PubRateMsgPerSec: 1000, ConsRateMsgPerSec: 1000,
+				PubLatencyAvgMs: 0.2, E2ELatencyAvgMs: 0.3},
+			{ElapsedSecs: 10.0, PubRateMsgPerSec: 1100, ConsRateMsgPerSec: 1100,
+				PubLatencyAvgMs: 0.21, E2ELatencyAvgMs: 0.31},
+		},
+		Summary: results.FinalSummary{
+			PubAvgMs: 0.20, PubP50Ms: 0.20, PubP95Ms: 0.27,
+			PubP99Ms: 0.33, PubP999Ms: 0.46, PubP9999Ms: 0.81, PubMaxMs: 1.5,
+			E2EAvgMs: 0.32, E2EP50Ms: 0.33, E2EP95Ms: 0.47,
+			E2EP99Ms: 0.55, E2EP999Ms: 0.75, E2EP9999Ms: 1.43, E2EMaxMs: 2.2,
+		},
+	}
+
+	if err := results.WriteHTML(run, path); err != nil {
+		t.Fatalf("WriteHTML: %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	html := string(content)
+
+	checks := []struct {
+		substr string
+		desc   string
+	}{
+		{"chart.js", "Chart.js CDN reference"},
+		{"localhost:9092", "broker address in report header"},
+		{"Aggregated Latency Summary", "summary section heading"},
+	}
+	for _, c := range checks {
+		if !strings.Contains(html, c.substr) {
+			t.Errorf("expected HTML to contain %q (%s)", c.substr, c.desc)
+		}
+	}
+}
+
+func TestWriteHTMLInvalidPath(t *testing.T) {
+	run := &results.Run{
+		Meta: results.RunMeta{Brokers: []string{"b:9092"}},
+	}
+	err := results.WriteHTML(run, "/nonexistent-dir-gobench/report.html")
+	if err == nil {
+		t.Error("expected error writing to invalid path, got nil")
 	}
 }
