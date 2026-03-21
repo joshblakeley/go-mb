@@ -94,6 +94,10 @@ func TestRecorderCorrectedReceive(t *testing.T) {
 	if snap.EndToEndLatency.TotalCount() != 5 {
 		t.Errorf("EndToEndLatency.TotalCount = %d, want 5", snap.EndToEndLatency.TotalCount())
 	}
+	cum := r.Cumulative()
+	if cum.EndToEndLatency.TotalCount() != 5 {
+		t.Errorf("cumulative EndToEndLatency.TotalCount = %d, want 5", cum.EndToEndLatency.TotalCount())
+	}
 }
 
 func TestRecorderNoCorrectionWhenZeroInterval(t *testing.T) {
