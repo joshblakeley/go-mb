@@ -40,7 +40,7 @@ func Default() Config {
 		Brokers:           []string{"localhost:9092"},
 		Topic:             "benchmark",
 		Partitions:        1,
-		ReplicationFactor: 1,
+		ReplicationFactor: 3,
 		Producers:         1,
 		Consumers:         1,
 		MessageSize:       1024,

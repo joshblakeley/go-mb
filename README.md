@@ -57,7 +57,7 @@ go-mb run [flags]
 |------|---------|-------------|
 | `--topic` | `benchmark` | Topic name |
 | `--partitions` | `1` | Number of partitions |
-| `--replication-factor` | `1` | Replication factor |
+| `--replication-factor` | `3` | Replication factor |
 | `--create-topic` | `true` | Create topic before benchmark |
 | `--delete-topic` | `true` | Delete topic after benchmark |
 
