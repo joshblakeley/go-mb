@@ -9,8 +9,11 @@ import (
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/sasl/plain"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
 
 	"github.com/redpanda-data/go-bench/internal/config"
+	"github.com/redpanda-data/go-bench/internal/tlsconfig"
 	"github.com/redpanda-data/go-bench/internal/consumer"
 	"github.com/redpanda-data/go-bench/internal/metrics"
 	"github.com/redpanda-data/go-bench/internal/producer"
@@ -26,11 +29,25 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
+	// Build shared TLS and SASL options applied to topic admin, producer, and consumer clients.
+	// cfg.TLSCACert non-empty implies TLS regardless of cfg.TLS; this is resolved here rather
+	// than in Validate() so the config layer validates field values and the bench layer resolves
+	// derived semantics.
+	tlsCfg, err := tlsconfig.Build(cfg.TLS || cfg.TLSCACert != "", cfg.TLSCACert)
+	if err != nil {
+		return fmt.Errorf("build TLS config: %w", err)
+	}
+	var sharedOpts []kgo.Opt
+	if tlsCfg != nil {
+		sharedOpts = append(sharedOpts, kgo.DialTLSConfig(tlsCfg))
+	}
+	sharedOpts = append(sharedOpts, saslOpts(cfg)...)
+
 	// 1. Topic management.
 	if cfg.CreateTopic {
 		fmt.Printf("Creating topic %q (%d partitions, RF=%d)...\n",
 			cfg.Topic, cfg.Partitions, cfg.ReplicationFactor)
-		if err := topic.Create(ctx, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor); err != nil {
+		if err := topic.Create(ctx, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor, sharedOpts...); err != nil {
 			return fmt.Errorf("create topic: %w", err)
 		}
 	}
@@ -51,21 +68,25 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	// 2. Build kafka clients.
 	// Producers and consumers use separate clients so each pool can tune
 	// client options independently in future.
-	producerClient, err := kgo.NewClient(
+	prodOpts := append(
 		append([]kgo.Opt{
 			kgo.SeedBrokers(cfg.Brokers...),
 			kgo.DefaultProduceTopic(cfg.Topic),
-		}, producerOpts(cfg)...)...,
+		}, producerOpts(cfg)...),
+		sharedOpts...,
 	)
+	producerClient, err := kgo.NewClient(prodOpts...)
 	if err != nil {
 		return fmt.Errorf("create producer client: %w", err)
 	}
 	defer producerClient.Close()
 
 	consumerClient, err := kgo.NewClient(
-		kgo.SeedBrokers(cfg.Brokers...),
-		kgo.ConsumeTopics(cfg.Topic),
-		kgo.ConsumerGroup(cfg.ConsumerGroup),
+		append([]kgo.Opt{
+			kgo.SeedBrokers(cfg.Brokers...),
+			kgo.ConsumeTopics(cfg.Topic),
+			kgo.ConsumerGroup(cfg.ConsumerGroup),
+		}, sharedOpts...)...,
 	)
 	if err != nil {
 		return fmt.Errorf("create consumer client: %w", err)
@@ -138,7 +159,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	// 6. Cleanup.
 	if cfg.DeleteTopic {
 		fmt.Printf("Deleting topic %q...\n", cfg.Topic)
-		if err := topic.Delete(context.Background(), cfg.Brokers, cfg.Topic); err != nil {
+		if err := topic.Delete(context.Background(), cfg.Brokers, cfg.Topic, sharedOpts...); err != nil {
 			fmt.Printf("Warning: failed to delete topic: %v\n", err)
 		}
 	}
@@ -184,6 +205,30 @@ func producerOpts(cfg *config.Config) []kgo.Opt {
 	}
 
 	return opts
+}
+
+// saslOpts returns the franz-go SASL option for the configured mechanism.
+// Returns nil when SASLMechanism is empty (no authentication); nil spreads
+// cleanly with ... in append so no nil-guard is needed at call sites.
+func saslOpts(cfg *config.Config) []kgo.Opt {
+	switch cfg.SASLMechanism {
+	case "plain":
+		return []kgo.Opt{kgo.SASL(plain.Auth{
+			User: cfg.SASLUsername,
+			Pass: cfg.SASLPassword,
+		}.AsMechanism())}
+	case "scram-sha-256":
+		return []kgo.Opt{kgo.SASL(scram.Auth{
+			User: cfg.SASLUsername,
+			Pass: cfg.SASLPassword,
+		}.AsSha256Mechanism())}
+	case "scram-sha-512":
+		return []kgo.Opt{kgo.SASL(scram.Auth{
+			User: cfg.SASLUsername,
+			Pass: cfg.SASLPassword,
+		}.AsSha512Mechanism())}
+	}
+	return nil
 }
 
 // runWorkers starts producer and consumer pools and blocks until ctx is done.
