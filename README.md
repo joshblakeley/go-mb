@@ -47,62 +47,62 @@ go-mb run [flags]
 
 ### Connection
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--brokers` | `localhost:9092` | Comma-separated broker addresses |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--brokers` | `-b` | `localhost:9092` | Comma-separated broker addresses |
 
 ### Topic
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--topic` | `benchmark` | Topic name |
-| `--partitions` | `1` | Number of partitions |
-| `--replication-factor` | `3` | Replication factor |
-| `--create-topic` | `true` | Create topic before benchmark |
-| `--delete-topic` | `true` | Delete topic after benchmark |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--topic` | `-t` | `benchmark` | Topic name |
+| `--partitions` | `-p` | `1` | Number of partitions |
+| `--replication-factor` | `-r` | `3` | Replication factor |
+| `--create-topic` | | `true` | Create topic before benchmark |
+| `--delete-topic` | | `true` | Delete topic after benchmark |
 
 ### Workload
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--producers` | `1` | Concurrent producer goroutines |
-| `--consumers` | `1` | Concurrent consumer goroutines |
-| `--message-size` | `1024` | Message size in bytes (min 8) |
-| `--rate` | `0` | Target produce rate msg/s per producer (0 = unlimited) |
-| `--consumer-group` | `benchmark-group` | Consumer group ID |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--producers` | `-P` | `1` | Concurrent producer goroutines |
+| `--consumers` | `-C` | `1` | Concurrent consumer goroutines |
+| `--message-size` | `-s` | `1024` | Message size in bytes (min 8) |
+| `--rate` | `-R` | `0` | Target produce rate msg/s per producer (0 = unlimited) |
+| `--consumer-group` | | `benchmark-group` | Consumer group ID |
 
 ### Duration
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--duration` | `1m` | Benchmark duration |
-| `--warmup` | `0` | Warmup period before recording (excluded from results) |
-| `--report-interval` | `10s` | Periodic stats interval |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--duration` | `-d` | `1m` | Benchmark duration |
+| `--warmup` | `-w` | `0` | Warmup period before recording (excluded from results) |
+| `--report-interval` | | `10s` | Periodic stats interval |
 
 ### Producer Tuning
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--acks` | `all` | Acks: `0` (none), `1` (leader), `all` (all ISR) |
-| `--compression` | `none` | Codec: `none`, `gzip`, `snappy`, `lz4`, `zstd` |
-| `--linger-ms` | `0` | Linger in ms before flushing batch (0 = immediate) |
-| `--batch-max-bytes` | `0` | Max batch size in bytes (0 = franz-go default ~1MB) |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--acks` | | `all` | Acks: `0` (none), `1` (leader), `all` (all ISR) |
+| `--compression` | | `none` | Codec: `none`, `gzip`, `snappy`, `lz4`, `zstd` |
+| `--linger-ms` | | `0` | Linger in ms before flushing batch (0 = immediate) |
+| `--batch-max-bytes` | | `0` | Max batch size in bytes (0 = franz-go default ~1MB) |
 
 ### Security
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--tls` | `false` | Enable TLS using system root CAs |
-| `--tls-ca-cert` | `` | Path to CA certificate PEM (implies `--tls`) |
-| `--sasl-mechanism` | `` | `plain`, `scram-sha-256`, or `scram-sha-512` |
-| `--sasl-username` | `` | SASL username |
-| `--sasl-password` | `` | SASL password |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--tls` | | `false` | Enable TLS using system root CAs |
+| `--tls-ca-cert` | | `` | Path to CA certificate PEM (implies `--tls`) |
+| `--sasl-mechanism` | | `` | `plain`, `scram-sha-256`, or `scram-sha-512` |
+| `--sasl-username` | | `` | SASL username |
+| `--sasl-password` | | `` | SASL password |
 
 ### Output
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--output` | `` | Path to write HTML report (e.g. `report.html`) |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--output` | `-o` | `` | Path to write HTML report (e.g. `report.html`) |
 
 ## Examples
 
