@@ -23,10 +23,10 @@ type Config struct {
 	CreateTopic       bool
 	DeleteTopic       bool
 	OutputFile        string // path to write HTML report; empty means disabled
-	Acks          string // "0", "1", "all"
-	Compression   string // "none", "gzip", "snappy", "lz4", "zstd"
-	LingerMs      int    // milliseconds; 0 = franz-go default (send immediately)
-	BatchMaxBytes int    // bytes; 0 = franz-go default (~1MB)
+	Acks              string // "0", "1", "all"
+	Compression       string // "none", "gzip", "snappy", "lz4", "zstd"
+	LingerMs          int    // milliseconds; 0 = franz-go default (send immediately)
+	BatchMaxBytes     int    // bytes; 0 = franz-go default (~1MB)
 }
 
 // Default returns a Config with sensible defaults matching OMB workload defaults.
@@ -46,10 +46,10 @@ func Default() Config {
 		ConsumerGroup:     "benchmark-group",
 		CreateTopic:       true,
 		DeleteTopic:       true,
-		Acks:          "all",
-		Compression:   "none",
-		LingerMs:      0,
-		BatchMaxBytes: 0,
+		Acks:              "all",
+		Compression:       "none",
+		LingerMs:          0,
+		BatchMaxBytes:     0,
 	}
 }
 
