@@ -35,7 +35,11 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		}
 	}
 
-	rec := metrics.NewRecorder()
+	var expectedIntervalMicros int64
+	if cfg.ProduceRate > 0 {
+		expectedIntervalMicros = 1_000_000 / int64(cfg.ProduceRate)
+	}
+	rec := metrics.NewRecorder(expectedIntervalMicros)
 
 	// 2. Build kafka clients.
 	// Producers and consumers use separate clients so each pool can tune
@@ -66,7 +70,7 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		runWorkers(wCtx, cfg, producerClient, consumerClient, rec)
 		wCancel()
 		// Reset metrics after warmup.
-		rec = metrics.NewRecorder()
+		rec = metrics.NewRecorder(expectedIntervalMicros)
 	}
 
 	// 4. Benchmark run.
