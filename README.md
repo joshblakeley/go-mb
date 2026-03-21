@@ -18,16 +18,16 @@ A lightweight Kafka/Redpanda benchmarking tool written in Go. Measures publish l
 make broker-up
 
 # Run a benchmark
-go run ./cmd/bench run
+go run ./cmd/go-mb run
 
 # With HTML report
-go run ./cmd/bench run --duration 60s --output report.html
+go run ./cmd/go-mb run --duration 60s --output report.html
 ```
 
 ## Installation
 
 ```bash
-go install github.com/joshblakeley/go-mb/cmd/bench@latest
+go install github.com/joshblakeley/go-mb/cmd/go-mb@latest
 ```
 
 Or build from source:
@@ -36,13 +36,13 @@ Or build from source:
 git clone https://github.com/joshblakeley/go-mb
 cd go-mb
 make build
-./bench run
+./go-mb run
 ```
 
 ## Usage
 
 ```
-bench run [flags]
+go-mb run [flags]
 ```
 
 ### Connection
@@ -108,14 +108,14 @@ bench run [flags]
 
 ```bash
 # High-throughput: 4 producers, no rate limit, zstd compression
-bench run --producers 4 --consumers 4 --partitions 4 \
+go-mb run --producers 4 --consumers 4 --partitions 4 \
   --compression zstd --acks 1 --duration 2m
 
 # Latency-focused: rate-limited, leader ack, HTML report
-bench run --rate 1000 --acks all --duration 60s --output report.html
+go-mb run --rate 1000 --acks all --duration 60s --output report.html
 
 # Against a TLS+SASL cluster
-bench run --brokers broker:9092 \
+go-mb run --brokers broker:9092 \
   --tls --tls-ca-cert /path/to/ca.pem \
   --sasl-mechanism scram-sha-256 \
   --sasl-username user --sasl-password secret

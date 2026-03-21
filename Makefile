@@ -1,8 +1,8 @@
 .PHONY: build test test-integration broker-up broker-down broker-wait e2e
 
-# Build the bench binary
+# Build the go-mb binary
 build:
-	go build -o bench ./cmd/bench
+	go build -o go-mb ./cmd/go-mb
 
 # Run unit tests only
 test:
@@ -31,7 +31,7 @@ e2e: build broker-up
 	$(MAKE) test-integration
 	@echo ""
 	@echo "=== Running CLI end-to-end ==="
-	./bench run \
+	./go-mb run \
 		--brokers localhost:9092 \
 		--producers 2 \
 		--consumers 2 \
