@@ -25,6 +25,13 @@ func (h *Histogram) RecordValue(v int64) {
 	_ = h.h.RecordValue(v) // ignore range errors — clamp at caller if needed
 }
 
+// RecordCorrectedValue records v and fills in phantom samples for any time
+// skipped beyond expectedInterval (coordinated omission correction).
+// If expectedInterval <= 0, behaves like RecordValue.
+func (h *Histogram) RecordCorrectedValue(v, expectedInterval int64) {
+	_ = h.h.RecordCorrectedValue(v, expectedInterval)
+}
+
 // ValueAtPercentile returns the value at the given percentile (0–100).
 func (h *Histogram) ValueAtPercentile(p float64) int64 {
 	return h.h.ValueAtPercentile(p)

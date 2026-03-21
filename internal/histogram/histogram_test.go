@@ -61,3 +61,18 @@ func TestMaxValue(t *testing.T) {
 		t.Errorf("Max = %d, want 9", h.Max())
 	}
 }
+
+func TestRecordCorrectedValue(t *testing.T) {
+	h := histogram.New()
+	// Record 10000µs with expected interval 1000µs.
+	// HDR injects phantom samples at: 9000, 8000, 7000, 6000, 5000, 4000, 3000, 2000, 1000
+	// Total = 1 real + 9 phantom = 10
+	h.RecordCorrectedValue(10000, 1000)
+	if h.TotalCount() != 10 {
+		t.Errorf("TotalCount = %d, want 10 (1 real + 9 phantom)", h.TotalCount())
+	}
+	// Max should be the real value
+	if h.Max() < 9000 {
+		t.Errorf("Max = %d, want >= 9000", h.Max())
+	}
+}
