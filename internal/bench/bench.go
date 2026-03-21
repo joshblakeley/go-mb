@@ -13,12 +13,12 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl/scram"
 
 	"github.com/redpanda-data/go-bench/internal/config"
-	"github.com/redpanda-data/go-bench/internal/tlsconfig"
 	"github.com/redpanda-data/go-bench/internal/consumer"
 	"github.com/redpanda-data/go-bench/internal/metrics"
 	"github.com/redpanda-data/go-bench/internal/producer"
 	"github.com/redpanda-data/go-bench/internal/reporter"
 	"github.com/redpanda-data/go-bench/internal/results"
+	"github.com/redpanda-data/go-bench/internal/tlsconfig"
 	"github.com/redpanda-data/go-bench/internal/topic"
 )
 
@@ -194,7 +194,7 @@ func producerOpts(cfg *config.Config) []kgo.Opt {
 		opts = append(opts, kgo.ProducerBatchCompression(kgo.Lz4Compression()))
 	case "zstd":
 		opts = append(opts, kgo.ProducerBatchCompression(kgo.ZstdCompression()))
-	// "none": omit — franz-go default is no compression
+		// "none": omit — franz-go default is no compression
 	}
 
 	if cfg.LingerMs > 0 {
