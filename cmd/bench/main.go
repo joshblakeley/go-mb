@@ -56,6 +56,10 @@ func newRunCommand() *cobra.Command {
 	f.BoolVar(&cfg.CreateTopic, "create-topic", cfg.CreateTopic, "Create topic before benchmark")
 	f.BoolVar(&cfg.DeleteTopic, "delete-topic", cfg.DeleteTopic, "Delete topic after benchmark")
 	f.StringVar(&cfg.OutputFile, "output", cfg.OutputFile, "path to write HTML report (e.g. report.html; empty = disabled)")
+	f.StringVar(&cfg.Acks, "acks", cfg.Acks, `producer acks: "0" (none), "1" (leader), "all" (all ISR)`)
+	f.StringVar(&cfg.Compression, "compression", cfg.Compression, `compression codec: none, gzip, snappy, lz4, zstd`)
+	f.IntVar(&cfg.LingerMs, "linger-ms", cfg.LingerMs, "producer linger in milliseconds (0 = send immediately)")
+	f.IntVar(&cfg.BatchMaxBytes, "batch-max-bytes", cfg.BatchMaxBytes, "max producer batch size in bytes (0 = franz-go default ~1MB)")
 
 	return cmd
 }

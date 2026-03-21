@@ -52,8 +52,10 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	// Producers and consumers use separate clients so each pool can tune
 	// client options independently in future.
 	producerClient, err := kgo.NewClient(
-		kgo.SeedBrokers(cfg.Brokers...),
-		kgo.DefaultProduceTopic(cfg.Topic),
+		append([]kgo.Opt{
+			kgo.SeedBrokers(cfg.Brokers...),
+			kgo.DefaultProduceTopic(cfg.Topic),
+		}, producerOpts(cfg)...)...,
 	)
 	if err != nil {
 		return fmt.Errorf("create producer client: %w", err)
@@ -142,6 +144,46 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+// producerOpts translates producer tuning config into franz-go client options.
+// The acks option is always set explicitly — even for "all" (the default) — to
+// make the producer's durability contract visible in code rather than relying on
+// the franz-go default. The int options are omitted when zero so franz-go's own
+// defaults apply, consistent with their "0 = use default" semantics.
+// BatchMaxBytes is safe to cast to int32: Validate() caps it at math.MaxInt32.
+func producerOpts(cfg *config.Config) []kgo.Opt {
+	var opts []kgo.Opt
+
+	switch cfg.Acks {
+	case "0":
+		opts = append(opts, kgo.RequiredAcks(kgo.NoAck()))
+	case "1":
+		opts = append(opts, kgo.RequiredAcks(kgo.LeaderAck()))
+	case "all":
+		opts = append(opts, kgo.RequiredAcks(kgo.AllISRAcks()))
+	}
+
+	switch cfg.Compression {
+	case "gzip":
+		opts = append(opts, kgo.ProducerBatchCompression(kgo.GzipCompression()))
+	case "snappy":
+		opts = append(opts, kgo.ProducerBatchCompression(kgo.SnappyCompression()))
+	case "lz4":
+		opts = append(opts, kgo.ProducerBatchCompression(kgo.Lz4Compression()))
+	case "zstd":
+		opts = append(opts, kgo.ProducerBatchCompression(kgo.ZstdCompression()))
+	// "none": omit — franz-go default is no compression
+	}
+
+	if cfg.LingerMs > 0 {
+		opts = append(opts, kgo.ProducerLinger(time.Duration(cfg.LingerMs)*time.Millisecond))
+	}
+	if cfg.BatchMaxBytes > 0 {
+		opts = append(opts, kgo.ProducerBatchMaxBytes(int32(cfg.BatchMaxBytes)))
+	}
+
+	return opts
 }
 
 // runWorkers starts producer and consumer pools and blocks until ctx is done.
