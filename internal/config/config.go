@@ -27,6 +27,11 @@ type Config struct {
 	Compression       string // "none", "gzip", "snappy", "lz4", "zstd"
 	LingerMs          int    // milliseconds; 0 = franz-go default (send immediately)
 	BatchMaxBytes     int    // bytes; 0 = franz-go default (~1MB)
+	TLS           bool   // enable TLS with system root CAs
+	TLSCACert     string // path to CA cert PEM file; implies TLS
+	SASLMechanism string // "plain", "scram-sha-256", "scram-sha-512"; "" = disabled
+	SASLUsername  string // required when SASLMechanism is set
+	SASLPassword  string // required when SASLMechanism is set
 }
 
 // Default returns a Config with sensible defaults matching OMB workload defaults.
@@ -50,6 +55,11 @@ func Default() Config {
 		Compression:       "none",
 		LingerMs:          0,
 		BatchMaxBytes:     0,
+		TLS:           false,
+		TLSCACert:     "",
+		SASLMechanism: "",
+		SASLUsername:  "",
+		SASLPassword:  "",
 	}
 }
 
@@ -101,6 +111,19 @@ func (c *Config) Validate() error {
 	}
 	if c.BatchMaxBytes < 0 || c.BatchMaxBytes > math.MaxInt32 {
 		return errors.New("batch-max-bytes must be between 0 and 2147483647")
+	}
+	validMechanisms := map[string]bool{"plain": true, "scram-sha-256": true, "scram-sha-512": true}
+	if c.SASLMechanism != "" && !validMechanisms[c.SASLMechanism] {
+		return errors.New("sasl-mechanism must be plain, scram-sha-256, or scram-sha-512")
+	}
+	if c.SASLMechanism != "" && c.SASLUsername == "" {
+		return errors.New("sasl-username is required when sasl-mechanism is set")
+	}
+	if c.SASLMechanism != "" && c.SASLPassword == "" {
+		return errors.New("sasl-password is required when sasl-mechanism is set")
+	}
+	if (c.SASLUsername != "" || c.SASLPassword != "") && c.SASLMechanism == "" {
+		return errors.New("sasl-mechanism is required when sasl-username or sasl-password is set")
 	}
 	return nil
 }

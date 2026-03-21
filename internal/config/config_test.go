@@ -135,3 +135,56 @@ func TestValidateBatchMaxBytes(t *testing.T) {
 		t.Errorf("expected no error for batch-max-bytes=131072, got: %v", err)
 	}
 }
+
+func TestValidateSASLMechanism(t *testing.T) {
+	cfg := config.Default()
+	cfg.SASLMechanism = "kerberos"
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for invalid sasl-mechanism")
+	}
+	for _, valid := range []string{"plain", "scram-sha-256", "scram-sha-512"} {
+		cfg.SASLMechanism = valid
+		cfg.SASLUsername = "user"
+		cfg.SASLPassword = "pass"
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected no error for sasl-mechanism=%q, got: %v", valid, err)
+		}
+	}
+}
+
+func TestValidateSASLRequiresCredentials(t *testing.T) {
+	cfg := config.Default()
+	cfg.SASLMechanism = "plain"
+
+	// Missing username
+	cfg.SASLUsername = ""
+	cfg.SASLPassword = "pass"
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error when sasl-mechanism set but username missing")
+	}
+
+	// Missing password
+	cfg.SASLUsername = "user"
+	cfg.SASLPassword = ""
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error when sasl-mechanism set but password missing")
+	}
+}
+
+func TestValidateSASLCredentialsRequireMechanism(t *testing.T) {
+	// Username without mechanism
+	cfg := config.Default()
+	cfg.SASLUsername = "user"
+	cfg.SASLMechanism = ""
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error when sasl-username set but sasl-mechanism missing")
+	}
+
+	// Password without mechanism
+	cfg2 := config.Default()
+	cfg2.SASLPassword = "pass"
+	cfg2.SASLMechanism = ""
+	if err := cfg2.Validate(); err == nil {
+		t.Error("expected error when sasl-password set but sasl-mechanism missing")
+	}
+}
