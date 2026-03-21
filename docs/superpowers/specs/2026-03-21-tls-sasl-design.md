@@ -35,7 +35,7 @@ go-bench currently has no security support, making it impossible to benchmark an
 
 ## Architecture
 
-Six files change; one new package.
+Seven files change; one new package.
 
 ### New package: `internal/tlsconfig`
 
@@ -132,6 +132,33 @@ import (
 
 `TestBuildValidPEM` writes the generated PEM to `t.TempDir()` and asserts `Build(true, path)` returns a non-nil `*tls.Config` with non-nil `RootCAs`.
 
+### `internal/topic/topic.go`
+
+Both `Create` and `Delete` create their own `kgo.Client`. They must accept TLS and SASL options so they can connect to secured clusters. Add a variadic `extraOpts ...kgo.Opt` parameter to both signatures:
+
+```go
+func Create(ctx context.Context, brokers []string, name string, partitions int, replicationFactor int, extraOpts ...kgo.Opt) error {
+    opts := append([]kgo.Opt{kgo.SeedBrokers(brokers...)}, extraOpts...)
+    client, err := kgo.NewClient(opts...)
+    // rest unchanged
+}
+
+func Delete(ctx context.Context, brokers []string, name string, extraOpts ...kgo.Opt) error {
+    opts := append([]kgo.Opt{kgo.SeedBrokers(brokers...)}, extraOpts...)
+    client, err := kgo.NewClient(opts...)
+    // rest unchanged
+}
+```
+
+In `internal/bench/bench.go`, the existing call sites become:
+
+```go
+topic.Create(ctx, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor, sharedOpts...)
+topic.Delete(context.Background(), cfg.Brokers, cfg.Topic, sharedOpts...)
+```
+
+Because `sharedOpts` is built before topic creation (see bench.go additions below), it is available at both call sites. The variadic signature is backward-compatible: callers that pass no extra opts (e.g., existing tests) continue to work unchanged.
+
 ### `internal/config/config.go`
 
 Add five fields after `BatchMaxBytes`:
@@ -176,8 +203,8 @@ if (c.SASLUsername != "" || c.SASLPassword != "") && c.SASLMechanism == "" {
 
 New unit tests:
 
-- `TestValidateSASLMechanism`: invalid `"kerberos"` returns error; valid `"plain"`, `"scram-sha-256"`, `"scram-sha-512"` pass
-- `TestValidateSASLRequiresCredentials`: mechanism set without username returns error; without password returns error
+- `TestValidateSASLMechanism`: invalid `"kerberos"` returns error; valid `"plain"`, `"scram-sha-256"`, `"scram-sha-512"` each pass — remember to also set `SASLUsername` and `SASLPassword` when testing valid mechanisms, otherwise the credential-required checks will fire and the test will incorrectly fail
+- `TestValidateSASLRequiresCredentials`: mechanism set without username returns error; mechanism set without password returns error
 - `TestValidateSASLCredentialsRequireMechanism`: username set without mechanism returns error
 
 ### `cmd/bench/main.go`
@@ -203,7 +230,7 @@ Two additions:
 "github.com/twmb/franz-go/pkg/sasl/scram"
 ```
 
-**2. Shared options built after `cfg.Validate()` and topic creation, immediately before the producer `kgo.NewClient()` call:**
+**2. Shared options built after `cfg.Validate()` and immediately before the `topic.Create` call (so they are available for topic creation, producer, and consumer):**
 
 ```go
 // Build shared TLS and SASL options applied to both producer and consumer clients.
