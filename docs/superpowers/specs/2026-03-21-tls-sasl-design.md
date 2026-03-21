@@ -85,8 +85,8 @@ func Build(enabled bool, caCertPath string) (*tls.Config, error) {
 
 - `TestBuildDisabled`: `Build(false, "")` → nil config, nil error
 - `TestBuildSystemRoots`: `Build(true, "")` → non-nil config, nil error
-- `TestBuildInvalidPath`: `Build(true, "/nonexistent/ca.pem")` → nil config, non-nil error
-- `TestBuildValidPEM`: write a hardcoded self-signed CA cert to `t.TempDir()`, `Build(true, path)` → non-nil config with non-nil `RootCAs`, nil error
+- `TestBuildInvalidPath`: `Build(true, "/nonexistent/ca.pem")` → nil config, non-nil error; also test `Build(false, "/nonexistent/ca.pem")` → nil config, non-nil error (non-empty `caCertPath` always triggers a read attempt, regardless of `enabled`)
+- `TestBuildValidPEM`: write a generated self-signed CA cert to `t.TempDir()`, `Build(true, path)` → non-nil config with non-nil `RootCAs`, nil error
 
 The `TestBuildValidPEM` test generates a real self-signed certificate at test time using `crypto/x509` and `crypto/rsa` rather than embedding a static PEM (static PEM blobs are fragile and may not be valid x509). Use a package-level helper:
 
@@ -157,7 +157,7 @@ topic.Create(ctx, cfg.Brokers, cfg.Topic, cfg.Partitions, cfg.ReplicationFactor,
 topic.Delete(context.Background(), cfg.Brokers, cfg.Topic, sharedOpts...)
 ```
 
-Because `sharedOpts` is built before topic creation (see bench.go additions below), it is available at both call sites. The variadic signature is backward-compatible: callers that pass no extra opts (e.g., existing tests) continue to work unchanged.
+Because `sharedOpts` is built before topic creation (see bench.go additions below), it is available at both call sites. The variadic signature is backward-compatible: existing callers (including `topic_test.go`) that pass no extra opts compile and behave identically — no changes to `topic_test.go` are required.
 
 ### `internal/config/config.go`
 
@@ -205,7 +205,7 @@ New unit tests:
 
 - `TestValidateSASLMechanism`: invalid `"kerberos"` returns error; valid `"plain"`, `"scram-sha-256"`, `"scram-sha-512"` each pass — remember to also set `SASLUsername` and `SASLPassword` when testing valid mechanisms, otherwise the credential-required checks will fire and the test will incorrectly fail
 - `TestValidateSASLRequiresCredentials`: mechanism set without username returns error; mechanism set without password returns error
-- `TestValidateSASLCredentialsRequireMechanism`: username set without mechanism returns error
+- `TestValidateSASLCredentialsRequireMechanism`: username set without mechanism returns error; password set without mechanism returns error
 
 ### `cmd/bench/main.go`
 
@@ -230,7 +230,9 @@ Two additions:
 "github.com/twmb/franz-go/pkg/sasl/scram"
 ```
 
-**2. Shared options built after `cfg.Validate()` and immediately before the `topic.Create` call (so they are available for topic creation, producer, and consumer):**
+**2. Shared options built immediately after `cfg.Validate()` returns nil and before the `topic.Create` block (so `sharedOpts` is available for topic creation, producer client, and consumer client):**
+
+Note: `Validate()` does not enforce that `TLS=true` when `TLSCACert` is non-empty — the implication is handled here by passing `cfg.TLS || cfg.TLSCACert != ""` as the `enabled` argument to `tlsconfig.Build`. This is intentional: the config layer validates field values, and the bench layer resolves derived semantics.
 
 ```go
 // Build shared TLS and SASL options applied to both producer and consumer clients.
@@ -273,7 +275,8 @@ consumerClient, err := kgo.NewClient(
 
 ```go
 // saslOpts returns the franz-go SASL option for the configured mechanism.
-// Returns an empty slice when SASLMechanism is empty (no authentication).
+// Returns nil when SASLMechanism is empty (no authentication); nil and an
+// empty slice are equivalent for append and spread and can be used interchangeably.
 func saslOpts(cfg *config.Config) []kgo.Opt {
     switch cfg.SASLMechanism {
     case "plain":
@@ -299,8 +302,8 @@ func saslOpts(cfg *config.Config) []kgo.Opt {
 ## Testing
 
 Unit tests cover all new logic that can be tested without a broker:
-- `internal/tlsconfig/tlsconfig_test.go`: 4 tests (disabled, system roots, invalid path, valid PEM)
-- `internal/config/config_test.go`: 3 new tests for SASL validation rules
+- `internal/tlsconfig/tlsconfig_test.go`: 4 tests (disabled, system roots, invalid path with both `enabled=true` and `enabled=false`, valid PEM)
+- `internal/config/config_test.go`: 3 new tests for SASL validation rules (invalid mechanism, credentials required when mechanism set, mechanism required when credentials set — both username-only and password-only cases)
 
 The existing `TestIntegrationSmoke` exercises the full `bench.Run` path and will compile and exercise the new shared-opts code path (with TLS/SASL disabled, the default).
 
