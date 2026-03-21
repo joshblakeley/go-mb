@@ -27,11 +27,11 @@ type Config struct {
 	Compression       string // "none", "gzip", "snappy", "lz4", "zstd"
 	LingerMs          int    // milliseconds; 0 = franz-go default (send immediately)
 	BatchMaxBytes     int    // bytes; 0 = franz-go default (~1MB)
-	TLS           bool   // enable TLS with system root CAs
-	TLSCACert     string // path to CA cert PEM file; implies TLS
-	SASLMechanism string // "plain", "scram-sha-256", "scram-sha-512"; "" = disabled
-	SASLUsername  string // required when SASLMechanism is set
-	SASLPassword  string // required when SASLMechanism is set
+	TLS               bool   // enable TLS with system root CAs
+	TLSCACert         string // path to CA cert PEM file; implies TLS
+	SASLMechanism     string // "plain", "scram-sha-256", "scram-sha-512"; "" = disabled
+	SASLUsername      string // required when SASLMechanism is set
+	SASLPassword      string // required when SASLMechanism is set
 }
 
 // Default returns a Config with sensible defaults matching OMB workload defaults.
@@ -55,11 +55,11 @@ func Default() Config {
 		Compression:       "none",
 		LingerMs:          0,
 		BatchMaxBytes:     0,
-		TLS:           false,
-		TLSCACert:     "",
-		SASLMechanism: "",
-		SASLUsername:  "",
-		SASLPassword:  "",
+		TLS:               false,
+		TLSCACert:         "",
+		SASLMechanism:     "",
+		SASLUsername:      "",
+		SASLPassword:      "",
 	}
 }
 
