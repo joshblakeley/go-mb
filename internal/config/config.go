@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"math"
 	"time"
 )
 
@@ -22,6 +23,10 @@ type Config struct {
 	CreateTopic       bool
 	DeleteTopic       bool
 	OutputFile        string // path to write HTML report; empty means disabled
+	Acks          string // "0", "1", "all"
+	Compression   string // "none", "gzip", "snappy", "lz4", "zstd"
+	LingerMs      int    // milliseconds; 0 = franz-go default (send immediately)
+	BatchMaxBytes int    // bytes; 0 = franz-go default (~1MB)
 }
 
 // Default returns a Config with sensible defaults matching OMB workload defaults.
@@ -41,6 +46,10 @@ func Default() Config {
 		ConsumerGroup:     "benchmark-group",
 		CreateTopic:       true,
 		DeleteTopic:       true,
+		Acks:          "all",
+		Compression:   "none",
+		LingerMs:      0,
+		BatchMaxBytes: 0,
 	}
 }
 
@@ -78,6 +87,20 @@ func (c *Config) Validate() error {
 	}
 	if c.ReportInterval <= 0 {
 		return errors.New("report-interval must be positive")
+	}
+	validAcks := map[string]bool{"0": true, "1": true, "all": true}
+	if !validAcks[c.Acks] {
+		return errors.New("acks must be 0, 1, or all")
+	}
+	validCompression := map[string]bool{"none": true, "gzip": true, "snappy": true, "lz4": true, "zstd": true}
+	if !validCompression[c.Compression] {
+		return errors.New("compression must be none, gzip, snappy, lz4, or zstd")
+	}
+	if c.LingerMs < 0 {
+		return errors.New("linger-ms must be >= 0")
+	}
+	if c.BatchMaxBytes < 0 || c.BatchMaxBytes > math.MaxInt32 {
+		return errors.New("batch-max-bytes must be between 0 and 2147483647")
 	}
 	return nil
 }

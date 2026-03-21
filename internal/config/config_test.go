@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -68,5 +69,69 @@ func TestValidateWarmupDuration(t *testing.T) {
 	cfg.WarmupDuration = -1 * time.Second
 	if err := cfg.Validate(); err == nil {
 		t.Error("expected error for negative warmup-duration")
+	}
+}
+
+func TestValidateAcks(t *testing.T) {
+	cfg := config.Default()
+	cfg.Acks = "2"
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for invalid acks value")
+	}
+	for _, valid := range []string{"0", "1", "all"} {
+		cfg.Acks = valid
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected no error for acks=%q, got: %v", valid, err)
+		}
+	}
+}
+
+func TestValidateCompression(t *testing.T) {
+	cfg := config.Default()
+	cfg.Compression = "brotli"
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for invalid compression value")
+	}
+	for _, valid := range []string{"none", "gzip", "snappy", "lz4", "zstd"} {
+		cfg.Compression = valid
+		if err := cfg.Validate(); err != nil {
+			t.Errorf("expected no error for compression=%q, got: %v", valid, err)
+		}
+	}
+}
+
+func TestValidateLingerMs(t *testing.T) {
+	cfg := config.Default()
+	cfg.LingerMs = -1
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for negative linger-ms")
+	}
+	cfg.LingerMs = 0
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("expected no error for linger-ms=0, got: %v", err)
+	}
+	cfg.LingerMs = 5
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("expected no error for linger-ms=5, got: %v", err)
+	}
+}
+
+func TestValidateBatchMaxBytes(t *testing.T) {
+	cfg := config.Default()
+	cfg.BatchMaxBytes = -1
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for negative batch-max-bytes")
+	}
+	cfg.BatchMaxBytes = math.MaxInt32 + 1
+	if err := cfg.Validate(); err == nil {
+		t.Error("expected error for batch-max-bytes > MaxInt32")
+	}
+	cfg.BatchMaxBytes = 0
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("expected no error for batch-max-bytes=0, got: %v", err)
+	}
+	cfg.BatchMaxBytes = 131072
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("expected no error for batch-max-bytes=131072, got: %v", err)
 	}
 }
