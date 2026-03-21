@@ -5,6 +5,7 @@ package producer
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/binary"
 	"time"
 
@@ -30,14 +31,18 @@ func (NoopSender) ProduceSync(_ context.Context, records ...*kgo.Record) kgo.Pro
 	return results
 }
 
-// BuildPayload returns a byte slice of the requested size with the timestamp
-// region (first 8 bytes) zeroed. The actual timestamp is stamped at send time.
+// BuildPayload returns a byte slice of the requested size filled with random
+// bytes, except the first 8 bytes which are reserved for the timestamp and
+// zeroed here (stamped at send time). Random content prevents compressors from
+// deflating payloads artificially, matching OMB behaviour.
 // If size < 8, returns an 8-byte slice.
 func BuildPayload(size int) []byte {
 	if size < 8 {
 		size = 8
 	}
-	return make([]byte, size)
+	buf := make([]byte, size)
+	_, _ = rand.Read(buf[8:])
+	return buf
 }
 
 // stampTime writes the current unix-nanosecond time into the first 8 bytes of payload.
