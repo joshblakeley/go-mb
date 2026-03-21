@@ -63,6 +63,15 @@ func NewRecorder(expectedIntervalMicros int64) *Recorder {
 	}
 }
 
+// recordLatency records v into h, using corrected recording when interval > 0.
+func recordLatency(h *histogram.Histogram, v, interval int64) {
+	if interval > 0 {
+		h.RecordCorrectedValue(v, interval)
+	} else {
+		h.RecordValue(v)
+	}
+}
+
 // RecordSend records a successful producer send.
 // latencyMicros is the time from ProduceSync call to ack.
 // When expectedIntervalMicros > 0, HDR corrected recording injects phantom
@@ -71,20 +80,12 @@ func (r *Recorder) RecordSend(bytes int, latencyMicros int64) {
 	r.mu.Lock()
 	r.messagesSent++
 	r.bytesSent += int64(bytes)
-	if r.expectedIntervalMicros > 0 {
-		r.periodPublish.RecordCorrectedValue(latencyMicros, r.expectedIntervalMicros)
-	} else {
-		r.periodPublish.RecordValue(latencyMicros)
-	}
+	recordLatency(r.periodPublish, latencyMicros, r.expectedIntervalMicros)
 	r.totalSent.Add(1) // inside mu so Snapshot sees consistent period+cumulative counts
 	r.mu.Unlock()
 
 	r.cumMu.Lock()
-	if r.expectedIntervalMicros > 0 {
-		r.cumPublish.RecordCorrectedValue(latencyMicros, r.expectedIntervalMicros)
-	} else {
-		r.cumPublish.RecordValue(latencyMicros)
-	}
+	recordLatency(r.cumPublish, latencyMicros, r.expectedIntervalMicros)
 	r.cumMu.Unlock()
 }
 
@@ -103,20 +104,12 @@ func (r *Recorder) RecordReceive(bytes int, e2eLatencyMicros int64) {
 	r.mu.Lock()
 	r.messagesReceived++
 	r.bytesReceived += int64(bytes)
-	if r.expectedIntervalMicros > 0 {
-		r.periodE2E.RecordCorrectedValue(e2eLatencyMicros, r.expectedIntervalMicros)
-	} else {
-		r.periodE2E.RecordValue(e2eLatencyMicros)
-	}
+	recordLatency(r.periodE2E, e2eLatencyMicros, r.expectedIntervalMicros)
 	r.totalReceived.Add(1) // inside mu so Snapshot sees consistent period+cumulative counts
 	r.mu.Unlock()
 
 	r.cumMu.Lock()
-	if r.expectedIntervalMicros > 0 {
-		r.cumE2E.RecordCorrectedValue(e2eLatencyMicros, r.expectedIntervalMicros)
-	} else {
-		r.cumE2E.RecordValue(e2eLatencyMicros)
-	}
+	recordLatency(r.cumE2E, e2eLatencyMicros, r.expectedIntervalMicros)
 	r.cumMu.Unlock()
 }
 
