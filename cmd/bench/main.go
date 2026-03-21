@@ -60,6 +60,11 @@ func newRunCommand() *cobra.Command {
 	f.StringVar(&cfg.Compression, "compression", cfg.Compression, `compression codec: none, gzip, snappy, lz4, zstd`)
 	f.IntVar(&cfg.LingerMs, "linger-ms", cfg.LingerMs, "producer linger in milliseconds (0 = send immediately)")
 	f.IntVar(&cfg.BatchMaxBytes, "batch-max-bytes", cfg.BatchMaxBytes, "max producer batch size in bytes (0 = franz-go default ~1MB)")
+	f.BoolVar(&cfg.TLS, "tls", cfg.TLS, "enable TLS using system root CAs")
+	f.StringVar(&cfg.TLSCACert, "tls-ca-cert", cfg.TLSCACert, "path to CA certificate PEM file (implies --tls)")
+	f.StringVar(&cfg.SASLMechanism, "sasl-mechanism", cfg.SASLMechanism, "SASL mechanism: plain, scram-sha-256, scram-sha-512")
+	f.StringVar(&cfg.SASLUsername, "sasl-username", cfg.SASLUsername, "SASL username")
+	f.StringVar(&cfg.SASLPassword, "sasl-password", cfg.SASLPassword, "SASL password")
 
 	return cmd
 }
