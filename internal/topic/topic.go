@@ -21,8 +21,9 @@ func ValidateName(name string) error {
 
 // Create creates a topic with the given number of partitions and replication factor.
 // If the topic already exists this is a no-op.
-func Create(ctx context.Context, brokers []string, name string, partitions int, replicationFactor int) error {
-	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+func Create(ctx context.Context, brokers []string, name string, partitions int, replicationFactor int, extraOpts ...kgo.Opt) error {
+	opts := append([]kgo.Opt{kgo.SeedBrokers(brokers...)}, extraOpts...)
+	client, err := kgo.NewClient(opts...)
 	if err != nil {
 		return fmt.Errorf("create admin client: %w", err)
 	}
@@ -43,8 +44,9 @@ func Create(ctx context.Context, brokers []string, name string, partitions int, 
 }
 
 // Delete deletes a topic. If the topic does not exist this is a no-op.
-func Delete(ctx context.Context, brokers []string, name string) error {
-	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+func Delete(ctx context.Context, brokers []string, name string, extraOpts ...kgo.Opt) error {
+	opts := append([]kgo.Opt{kgo.SeedBrokers(brokers...)}, extraOpts...)
+	client, err := kgo.NewClient(opts...)
 	if err != nil {
 		return fmt.Errorf("create admin client: %w", err)
 	}
