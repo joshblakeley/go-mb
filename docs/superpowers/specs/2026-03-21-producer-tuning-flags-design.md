@@ -25,13 +25,13 @@ go-bench currently hard-codes the franz-go defaults for all of these, making it 
 | `--acks` | `all` | `0`, `1`, `all` |
 | `--compression` | `none` | `none`, `gzip`, `snappy`, `lz4`, `zstd` |
 | `--linger-ms` | `0` | `>= 0` |
-| `--batch-max-bytes` | `0` | `>= 0` (0 = use franz-go default ~1MB) |
+| `--batch-max-bytes` | `0` | `0` to `2147483647` (0 = use franz-go default ~1MB) |
 
 `--acks all` mirrors OMB's recommended Redpanda default. `--compression none` preserves current behaviour. `0` for both int flags means "don't override the franz-go default".
 
 ## Architecture
 
-Three files change; no new packages.
+Four files change (three source files + config test file); no new packages.
 
 ### `internal/config/config.go`
 
@@ -50,11 +50,19 @@ BatchMaxBytes int    // bytes; 0 = franz-go default (~1MB)
 - `Acks` must be `"0"`, `"1"`, or `"all"` (error: `"acks must be 0, 1, or all"`)
 - `Compression` must be one of `"none"`, `"gzip"`, `"snappy"`, `"lz4"`, `"zstd"` (error: `"compression must be none, gzip, snappy, lz4, or zstd"`)
 - `LingerMs >= 0` (error: `"linger-ms must be >= 0"`)
-- `BatchMaxBytes >= 0` (error: `"batch-max-bytes must be >= 0"`)
+- `BatchMaxBytes >= 0 && BatchMaxBytes <= math.MaxInt32` (error: `"batch-max-bytes must be between 0 and 2147483647"`)
+
+### `internal/config/config_test.go`
+
+New unit tests (TDD — write failing tests before implementation):
+- `TestValidateAcks`: invalid value `"2"` returns error; valid values `"0"`, `"1"`, `"all"` pass
+- `TestValidateCompression`: invalid value `"brotli"` returns error; all 5 valid values pass
+- `TestValidateLingerMs`: `-1` returns error; `0` and positive pass
+- `TestValidateBatchMaxBytes`: `-1` returns error; `math.MaxInt32+1` returns error; `0` and `131072` pass
 
 ### `cmd/bench/main.go`
 
-Four new flags after `--delete-topic`:
+Four new flags registered in `newRunCommand()` alongside the existing flags (pflag does not guarantee help-output ordering; no ordering constraint applies):
 
 ```go
 f.StringVar(&cfg.Acks, "acks", cfg.Acks, `producer acks: "0" (none), "1" (leader), "all" (all ISR)`)
@@ -69,7 +77,10 @@ New unexported helper function:
 
 ```go
 // producerOpts translates producer tuning config into franz-go client options.
-// Options for zero/default values are omitted so franz-go's own defaults apply.
+// The acks option is always set explicitly — even for "all" (the default) — to
+// make the producer's durability contract visible in code rather than relying on
+// the franz-go default. The int options are omitted when zero so franz-go's own
+// defaults apply, consistent with their "0 = use default" semantics.
 func producerOpts(cfg *config.Config) []kgo.Opt {
     var opts []kgo.Opt
 
@@ -107,18 +118,13 @@ func producerOpts(cfg *config.Config) []kgo.Opt {
 
 `producerOpts(cfg)` is appended to the producer `kgo.NewClient()` call only. The consumer client is unchanged.
 
-## Testing
+The `int32` cast in `kgo.ProducerBatchMaxBytes(int32(cfg.BatchMaxBytes))` is safe because `Validate()` caps `BatchMaxBytes` at `math.MaxInt32`.
 
-**Unit tests (`internal/config/config_test.go`)** — TDD, one failing test per new validation rule before implementation:
-- `TestValidateAcks`: invalid value `"2"` returns error; valid values `"0"`, `"1"`, `"all"` pass
-- `TestValidateCompression`: invalid value `"brotli"` returns error; all 5 valid values pass
-- `TestValidateLingerMs`: `-1` returns error; `0` and positive pass
-- `TestValidateBatchMaxBytes`: `-1` returns error; `0` and positive pass
+## HTML Report
 
-**Integration** — the existing `TestIntegrationSmoke` exercises `bench.Run` end-to-end and will compile and execute `producerOpts`. No new integration test needed.
+The four new fields (`Acks`, `Compression`, `LingerMs`, `BatchMaxBytes`) are intentionally excluded from `results.RunMeta` and the HTML report header. The report already captures the workload parameters most relevant to result interpretation (producers, consumers, message size, duration). Producer tuning flags are operational configuration; they can be recovered from the CLI invocation logged to stdout. `results.go` does not change.
 
 ## Out of Scope
 
 - Consumer-side tuning flags (fetch size, fetch wait)
 - TLS / SASL (covered in the next spec)
-- `--batch-max-bytes` does not guard against values exceeding `int32` max; upstream `Validate()` or franz-go will surface that at runtime
