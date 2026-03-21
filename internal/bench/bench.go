@@ -194,7 +194,7 @@ func producerOpts(cfg *config.Config) []kgo.Opt {
 		opts = append(opts, kgo.ProducerBatchCompression(kgo.Lz4Compression()))
 	case "zstd":
 		opts = append(opts, kgo.ProducerBatchCompression(kgo.ZstdCompression()))
-		// "none": omit — franz-go default is no compression
+	// "none": omit — franz-go default is no compression
 	}
 
 	if cfg.LingerMs > 0 {
