@@ -27,7 +27,7 @@ func TestBuildPayloadMinSize(t *testing.T) {
 }
 
 func TestWorkerStopsOnContextCancel(t *testing.T) {
-	rec := metrics.NewRecorder()
+	rec := metrics.NewRecorder(0)
 	// Use a no-op sender so we don't need a real broker.
 	w := producer.NewWorker(producer.NoopSender{}, rec, "test-topic", 64, 0)
 

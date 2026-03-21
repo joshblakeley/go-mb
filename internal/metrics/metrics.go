@@ -28,7 +28,8 @@ type Snapshot struct {
 
 // Recorder accumulates metrics from concurrent producers and consumers.
 type Recorder struct {
-	startTime time.Time
+	startTime              time.Time
+	expectedIntervalMicros int64 // 0 means no correction (unlimited rate)
 
 	// Period counters — reset on Snapshot().
 	mu               sync.Mutex
@@ -49,28 +50,41 @@ type Recorder struct {
 }
 
 // NewRecorder returns an initialised Recorder.
-func NewRecorder() *Recorder {
+// expectedIntervalMicros is 1_000_000/rate µs for rate-limited runs; 0 disables
+// coordinated omission correction (unlimited rate).
+func NewRecorder(expectedIntervalMicros int64) *Recorder {
 	return &Recorder{
-		startTime:     time.Now(),
-		periodPublish: histogram.New(),
-		periodE2E:     histogram.New(),
-		cumPublish:    histogram.New(),
-		cumE2E:        histogram.New(),
+		startTime:              time.Now(),
+		expectedIntervalMicros: expectedIntervalMicros,
+		periodPublish:          histogram.New(),
+		periodE2E:              histogram.New(),
+		cumPublish:             histogram.New(),
+		cumE2E:                 histogram.New(),
 	}
 }
 
 // RecordSend records a successful producer send.
 // latencyMicros is the time from ProduceSync call to ack.
+// When expectedIntervalMicros > 0, HDR corrected recording injects phantom
+// samples for any interval skipped (coordinated omission correction).
 func (r *Recorder) RecordSend(bytes int, latencyMicros int64) {
 	r.mu.Lock()
 	r.messagesSent++
 	r.bytesSent += int64(bytes)
-	r.periodPublish.RecordValue(latencyMicros)
+	if r.expectedIntervalMicros > 0 {
+		r.periodPublish.RecordCorrectedValue(latencyMicros, r.expectedIntervalMicros)
+	} else {
+		r.periodPublish.RecordValue(latencyMicros)
+	}
 	r.totalSent.Add(1) // inside mu so Snapshot sees consistent period+cumulative counts
 	r.mu.Unlock()
 
 	r.cumMu.Lock()
-	r.cumPublish.RecordValue(latencyMicros)
+	if r.expectedIntervalMicros > 0 {
+		r.cumPublish.RecordCorrectedValue(latencyMicros, r.expectedIntervalMicros)
+	} else {
+		r.cumPublish.RecordValue(latencyMicros)
+	}
 	r.cumMu.Unlock()
 }
 
@@ -83,16 +97,26 @@ func (r *Recorder) RecordSendError() {
 
 // RecordReceive records a successfully consumed message.
 // e2eLatencyMicros is computed from the timestamp embedded in the message payload.
+// Correction uses the same expected interval as RecordSend: during a producer stall
+// the broker receives no new messages, so consumers are equally affected.
 func (r *Recorder) RecordReceive(bytes int, e2eLatencyMicros int64) {
 	r.mu.Lock()
 	r.messagesReceived++
 	r.bytesReceived += int64(bytes)
-	r.periodE2E.RecordValue(e2eLatencyMicros)
+	if r.expectedIntervalMicros > 0 {
+		r.periodE2E.RecordCorrectedValue(e2eLatencyMicros, r.expectedIntervalMicros)
+	} else {
+		r.periodE2E.RecordValue(e2eLatencyMicros)
+	}
 	r.totalReceived.Add(1) // inside mu so Snapshot sees consistent period+cumulative counts
 	r.mu.Unlock()
 
 	r.cumMu.Lock()
-	r.cumE2E.RecordValue(e2eLatencyMicros)
+	if r.expectedIntervalMicros > 0 {
+		r.cumE2E.RecordCorrectedValue(e2eLatencyMicros, r.expectedIntervalMicros)
+	} else {
+		r.cumE2E.RecordValue(e2eLatencyMicros)
+	}
 	r.cumMu.Unlock()
 }
 

@@ -32,7 +32,7 @@ func TestExtractTimestampShortPayload(t *testing.T) {
 }
 
 func TestWorkerStopsOnContextCancel(t *testing.T) {
-	rec := metrics.NewRecorder()
+	rec := metrics.NewRecorder(0)
 	w := consumer.NewWorker(consumer.NoopFetcher{}, rec)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -53,7 +53,7 @@ func TestWorkerStopsOnContextCancel(t *testing.T) {
 
 // NoopFetcherWithRecords returns a single batch of pre-crafted records.
 func TestWorkerRecordsMetrics(t *testing.T) {
-	rec := metrics.NewRecorder()
+	rec := metrics.NewRecorder(0)
 
 	// Craft a payload with a timestamp 5ms in the past.
 	past := time.Now().Add(-5 * time.Millisecond).UnixNano()

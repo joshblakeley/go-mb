@@ -8,7 +8,7 @@ import (
 )
 
 func TestRecordSend(t *testing.T) {
-	r := metrics.NewRecorder()
+	r := metrics.NewRecorder(0)
 	r.RecordSend(1024, 500) // 1024 bytes, 500µs publish latency
 	snap := r.Snapshot()
 	if snap.MessagesSent != 1 {
@@ -23,7 +23,7 @@ func TestRecordSend(t *testing.T) {
 }
 
 func TestRecordReceive(t *testing.T) {
-	r := metrics.NewRecorder()
+	r := metrics.NewRecorder(0)
 	r.RecordReceive(512, 1200) // 512 bytes, 1200µs E2E latency
 	snap := r.Snapshot()
 	if snap.MessagesReceived != 1 {
@@ -35,7 +35,7 @@ func TestRecordReceive(t *testing.T) {
 }
 
 func TestSnapshotResetsCounters(t *testing.T) {
-	r := metrics.NewRecorder()
+	r := metrics.NewRecorder(0)
 	r.RecordSend(100, 100)
 	r.Snapshot() // first snapshot drains
 	snap2 := r.Snapshot()
@@ -45,7 +45,7 @@ func TestSnapshotResetsCounters(t *testing.T) {
 }
 
 func TestCumulativeNotReset(t *testing.T) {
-	r := metrics.NewRecorder()
+	r := metrics.NewRecorder(0)
 	r.RecordSend(100, 100)
 	r.Snapshot() // resets period counters
 	cum := r.Cumulative()
@@ -55,7 +55,7 @@ func TestCumulativeNotReset(t *testing.T) {
 }
 
 func TestRecordSendError(t *testing.T) {
-	r := metrics.NewRecorder()
+	r := metrics.NewRecorder(0)
 	r.RecordSendError()
 	snap := r.Snapshot()
 	if snap.PublishErrors != 1 {
@@ -64,9 +64,44 @@ func TestRecordSendError(t *testing.T) {
 }
 
 func TestElapsed(t *testing.T) {
-	r := metrics.NewRecorder()
+	r := metrics.NewRecorder(0)
 	time.Sleep(10 * time.Millisecond)
 	if r.Elapsed() < 10*time.Millisecond {
 		t.Error("Elapsed should be >= 10ms")
+	}
+}
+
+func TestRecorderCorrectedSend(t *testing.T) {
+	// Interval 1000µs; latency 5000µs → 1 real + 4 phantom (4000, 3000, 2000, 1000) = 5 total.
+	r := metrics.NewRecorder(1000)
+	r.RecordSend(1024, 5000)
+	snap := r.Snapshot()
+	if snap.PublishLatency.TotalCount() != 5 {
+		t.Errorf("period PublishLatency.TotalCount = %d, want 5", snap.PublishLatency.TotalCount())
+	}
+	// Cumulative histogram must also receive corrected values.
+	cum := r.Cumulative()
+	if cum.PublishLatency.TotalCount() != 5 {
+		t.Errorf("cumulative PublishLatency.TotalCount = %d, want 5", cum.PublishLatency.TotalCount())
+	}
+}
+
+func TestRecorderCorrectedReceive(t *testing.T) {
+	// Same arithmetic: interval 1000µs, latency 5000µs → 5 total samples.
+	r := metrics.NewRecorder(1000)
+	r.RecordReceive(512, 5000)
+	snap := r.Snapshot()
+	if snap.EndToEndLatency.TotalCount() != 5 {
+		t.Errorf("EndToEndLatency.TotalCount = %d, want 5", snap.EndToEndLatency.TotalCount())
+	}
+}
+
+func TestRecorderNoCorrectionWhenZeroInterval(t *testing.T) {
+	// Zero interval (unlimited rate) → plain RecordValue, 1 sample only.
+	r := metrics.NewRecorder(0)
+	r.RecordSend(1024, 5000)
+	snap := r.Snapshot()
+	if snap.PublishLatency.TotalCount() != 1 {
+		t.Errorf("PublishLatency.TotalCount = %d, want 1 (no correction)", snap.PublishLatency.TotalCount())
 	}
 }
