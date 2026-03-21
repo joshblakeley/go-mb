@@ -88,26 +88,49 @@ func Build(enabled bool, caCertPath string) (*tls.Config, error) {
 - `TestBuildInvalidPath`: `Build(true, "/nonexistent/ca.pem")` → nil config, non-nil error
 - `TestBuildValidPEM`: write a hardcoded self-signed CA cert to `t.TempDir()`, `Build(true, path)` → non-nil config with non-nil `RootCAs`, nil error
 
-Hardcoded test CA cert (minimal self-signed, 2048-bit RSA, for test use only — not cryptographically strong):
+The `TestBuildValidPEM` test generates a real self-signed certificate at test time using `crypto/x509` and `crypto/rsa` rather than embedding a static PEM (static PEM blobs are fragile and may not be valid x509). Use a package-level helper:
 
 ```go
-const testCACert = `-----BEGIN CERTIFICATE-----
-MIICpDCCAYwCCQDU+pQ4pHgSpDANBgkqhkiG9w0BAQsFADAUMRIwEAYDVQQDDAl0
-ZXN0LWNlcnQwHhcNMjMwMTAxMDAwMDAwWhcNMjQwMTAxMDAwMDAwWjAUMRIwEAYD
-VQQDDAl0ZXN0LWNlcnQwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7
-o4qne60TB3wolTBq5NMAO6UD1JPzNRqrJpFO0RVHAnPQfD6Gp2MRqRpWH7PpzHL
-pPFqFWSmFjsPpKLfDEJ5yIbMV5kNSTHAqlkOvdlzRVLaEVKtgJnmxkx5wnpRn9Wd
-0QoNnsFcJkQxuHivXR6lKiOVBPDJI3biHMDd6MwCZIjFnFh12r4smEF0IfnbAAEA
-AQABAoIBAC5RgZ+hBx7xHNaMpPgwGpnFa7DmEkMFQBqzZcGMEMiAFlEWiLpMhzaN
-kKgDmNGMxCKKIlJ9bBGGfWMwLgxqWGVqNENTEFQwzRBTU05QRlRYNVVGN1BPVVNN
-VFdVWThRSjhMSEdNTExLTjdQWFhMSk5SMjhJTTlOSzFCMgIDAQABMA0GCSqGSIb3
-DQEBCwUAA4IBAQCxzFMKuBCa5PVMOStNuDLMUaRBHhZMiB7dEvQlnLVTBJBtQRo6
-9q3K+UMSHGPnOGNCNVGMRXt1on+nH2GOZH2PlNjSLlXNi9wWsHjsN+gcFNzDN5er
-aefZVEPvN/fVCFNFTDhIVzRZRVpZVVVNTlpXT0RPVFdIMFYzQ0NHSFNOVUZ6VFVB
------END CERTIFICATE-----`
+// generateSelfSignedCACert returns a PEM-encoded self-signed CA certificate
+// for use in tests only.
+func generateSelfSignedCACert(t *testing.T) []byte {
+    t.Helper()
+    key, err := rsa.GenerateKey(rand.Reader, 2048)
+    if err != nil {
+        t.Fatalf("generate RSA key: %v", err)
+    }
+    tmpl := &x509.Certificate{
+        SerialNumber: big.NewInt(1),
+        Subject:      pkix.Name{CommonName: "test-ca"},
+        NotBefore:    time.Now().Add(-time.Hour),
+        NotAfter:     time.Now().Add(time.Hour),
+        IsCA:         true,
+        KeyUsage:     x509.KeyUsageCertSign,
+    }
+    der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+    if err != nil {
+        t.Fatalf("create certificate: %v", err)
+    }
+    return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
 ```
 
-Note: this test certificate may not parse as valid x509 — if `pool.AppendCertsFromPEM` returns false, generate a real self-signed cert using `crypto/x509` and `crypto/rsa` in a `TestMain` or helper. The test must confirm that a valid PEM file produces a non-nil `RootCAs` pool.
+Additional imports required in `tlsconfig_test.go`:
+```go
+import (
+    "crypto/rand"
+    "crypto/rsa"
+    "crypto/x509"
+    "crypto/x509/pkix"
+    "encoding/pem"
+    "math/big"
+    "os"
+    "testing"
+    "time"
+)
+```
+
+`TestBuildValidPEM` writes the generated PEM to `t.TempDir()` and asserts `Build(true, path)` returns a non-nil `*tls.Config` with non-nil `RootCAs`.
 
 ### `internal/config/config.go`
 
@@ -121,7 +144,15 @@ SASLUsername  string // required when SASLMechanism is set
 SASLPassword  string // required when SASLMechanism is set
 ```
 
-`Default()`: all zero/false/empty values — no changes to struct literal (zero values are the correct defaults).
+`Default()`: the five new fields have correct zero/false/empty defaults. Add them explicitly to the `Default()` struct literal to keep the pattern consistent with existing fields:
+
+```go
+TLS:           false,
+TLSCACert:     "",
+SASLMechanism: "",
+SASLUsername:  "",
+SASLPassword:  "",
+```
 
 `Validate()` additions (before final `return nil`):
 
@@ -172,7 +203,7 @@ Two additions:
 "github.com/twmb/franz-go/pkg/sasl/scram"
 ```
 
-**2. Shared options built before client construction:**
+**2. Shared options built after `cfg.Validate()` and topic creation, immediately before the producer `kgo.NewClient()` call:**
 
 ```go
 // Build shared TLS and SASL options applied to both producer and consumer clients.
@@ -227,12 +258,12 @@ func saslOpts(cfg *config.Config) []kgo.Opt {
         return []kgo.Opt{kgo.SASL(scram.Auth{
             User: cfg.SASLUsername,
             Pass: cfg.SASLPassword,
-        }.AsMechanism(scram.SHA256))}
+        }.AsSha256Mechanism())}
     case "scram-sha-512":
         return []kgo.Opt{kgo.SASL(scram.Auth{
             User: cfg.SASLUsername,
             Pass: cfg.SASLPassword,
-        }.AsMechanism(scram.SHA512))}
+        }.AsSha512Mechanism())}
     }
     return nil
 }
