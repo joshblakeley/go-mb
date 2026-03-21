@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/tlsconfig"
+	"github.com/joshblakeley/go-mb/internal/tlsconfig"
 )
 
 func TestBuildDisabled(t *testing.T) {

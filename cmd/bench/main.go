@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/redpanda-data/go-bench/internal/bench"
-	"github.com/redpanda-data/go-bench/internal/config"
+	"github.com/joshblakeley/go-mb/internal/bench"
+	"github.com/joshblakeley/go-mb/internal/config"
 )
 
 func main() {

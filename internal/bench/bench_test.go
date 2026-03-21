@@ -3,7 +3,7 @@ package bench_test
 import (
 	"testing"
 
-	"github.com/redpanda-data/go-bench/internal/config"
+	"github.com/joshblakeley/go-mb/internal/config"
 )
 
 // TestRunRejectsInvalidConfig verifies that Run returns an error immediately

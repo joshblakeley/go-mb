@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/metrics"
-	"github.com/redpanda-data/go-bench/internal/producer"
+	"github.com/joshblakeley/go-mb/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/producer"
 )
 
 func TestBuildPayload(t *testing.T) {

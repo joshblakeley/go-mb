@@ -11,7 +11,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 	"golang.org/x/time/rate"
 
-	"github.com/redpanda-data/go-bench/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/metrics"
 )
 
 // Sender is the subset of kgo.Client used by Worker, enabling test doubles.

@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/histogram"
+	"github.com/joshblakeley/go-mb/internal/histogram"
 )
 
 // Snapshot is a point-in-time view of period metrics. Histograms are cloned

@@ -1,4 +1,4 @@
-module github.com/redpanda-data/go-bench
+module github.com/joshblakeley/go-mb
 
 go 1.25.0
 

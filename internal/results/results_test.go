@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/config"
-	"github.com/redpanda-data/go-bench/internal/histogram"
-	"github.com/redpanda-data/go-bench/internal/metrics"
-	"github.com/redpanda-data/go-bench/internal/results"
+	"github.com/joshblakeley/go-mb/internal/config"
+	"github.com/joshblakeley/go-mb/internal/histogram"
+	"github.com/joshblakeley/go-mb/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/results"
 )
 
 // makeSnap constructs a metrics.Snapshot for testing.

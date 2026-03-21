@@ -105,7 +105,7 @@ const reportTemplate = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>go-bench Report</title>
+<title>go-mb Report</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
 * { box-sizing: border-box; }
@@ -130,7 +130,7 @@ tbody td:first-child { text-align: left; font-weight: 500; }
 </head>
 <body>
 <div class="meta">
-  <h1>go-bench Report</h1>
+  <h1>go-mb Report</h1>
   <dl class="meta-grid">
     <dt>Brokers</dt><dd>{{.BrokersStr}}</dd>
     <dt>Topic</dt><dd>{{.Topic}}</dd>

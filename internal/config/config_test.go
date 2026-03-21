@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/config"
+	"github.com/joshblakeley/go-mb/internal/config"
 )
 
 func TestDefaultIsValid(t *testing.T) {

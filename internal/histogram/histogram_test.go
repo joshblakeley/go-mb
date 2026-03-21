@@ -3,7 +3,7 @@ package histogram_test
 import (
 	"testing"
 
-	"github.com/redpanda-data/go-bench/internal/histogram"
+	"github.com/joshblakeley/go-mb/internal/histogram"
 )
 
 func TestRecordAndPercentile(t *testing.T) {

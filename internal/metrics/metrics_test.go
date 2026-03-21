@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/metrics"
 )
 
 func TestRecordSend(t *testing.T) {

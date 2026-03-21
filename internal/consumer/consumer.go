@@ -10,7 +10,7 @@ import (
 
 	"github.com/twmb/franz-go/pkg/kgo"
 
-	"github.com/redpanda-data/go-bench/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/metrics"
 )
 
 // Fetcher is the subset of kgo.Client used by Worker, enabling test doubles.

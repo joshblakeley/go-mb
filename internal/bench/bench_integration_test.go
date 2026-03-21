@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/bench"
-	"github.com/redpanda-data/go-bench/internal/config"
+	"github.com/joshblakeley/go-mb/internal/bench"
+	"github.com/joshblakeley/go-mb/internal/config"
 )
 
 // Run with: BENCH_BROKERS=localhost:9092 go test ./internal/bench/ -tags integration -v -run TestIntegrationSmoke

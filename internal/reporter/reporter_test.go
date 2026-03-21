@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/histogram"
-	"github.com/redpanda-data/go-bench/internal/metrics"
-	"github.com/redpanda-data/go-bench/internal/reporter"
+	"github.com/joshblakeley/go-mb/internal/histogram"
+	"github.com/joshblakeley/go-mb/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/reporter"
 )
 
 func makeSnapshot(sent, received int64, pubLatUS, e2eLatUS int64) metrics.Snapshot {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/metrics"
 )
 
 // microsToMillis converts microseconds to milliseconds.

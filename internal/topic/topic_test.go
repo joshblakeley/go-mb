@@ -3,7 +3,7 @@ package topic_test
 import (
 	"testing"
 
-	"github.com/redpanda-data/go-bench/internal/topic"
+	"github.com/joshblakeley/go-mb/internal/topic"
 )
 
 // TestConfigValidation checks that empty topic name is rejected.

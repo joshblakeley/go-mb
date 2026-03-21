@@ -8,8 +8,8 @@ import (
 
 	"github.com/twmb/franz-go/pkg/kgo"
 
-	"github.com/redpanda-data/go-bench/internal/consumer"
-	"github.com/redpanda-data/go-bench/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/consumer"
+	"github.com/joshblakeley/go-mb/internal/metrics"
 )
 
 func TestExtractTimestamp(t *testing.T) {

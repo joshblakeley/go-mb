@@ -5,8 +5,8 @@ package results
 import (
 	"time"
 
-	"github.com/redpanda-data/go-bench/internal/config"
-	"github.com/redpanda-data/go-bench/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/config"
+	"github.com/joshblakeley/go-mb/internal/metrics"
 )
 
 // DataPoint holds per-interval benchmark metrics for one reporting tick.

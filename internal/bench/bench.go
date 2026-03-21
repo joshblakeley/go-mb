@@ -12,14 +12,14 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl/plain"
 	"github.com/twmb/franz-go/pkg/sasl/scram"
 
-	"github.com/redpanda-data/go-bench/internal/config"
-	"github.com/redpanda-data/go-bench/internal/consumer"
-	"github.com/redpanda-data/go-bench/internal/metrics"
-	"github.com/redpanda-data/go-bench/internal/producer"
-	"github.com/redpanda-data/go-bench/internal/reporter"
-	"github.com/redpanda-data/go-bench/internal/results"
-	"github.com/redpanda-data/go-bench/internal/tlsconfig"
-	"github.com/redpanda-data/go-bench/internal/topic"
+	"github.com/joshblakeley/go-mb/internal/config"
+	"github.com/joshblakeley/go-mb/internal/consumer"
+	"github.com/joshblakeley/go-mb/internal/metrics"
+	"github.com/joshblakeley/go-mb/internal/producer"
+	"github.com/joshblakeley/go-mb/internal/reporter"
+	"github.com/joshblakeley/go-mb/internal/results"
+	"github.com/joshblakeley/go-mb/internal/tlsconfig"
+	"github.com/joshblakeley/go-mb/internal/topic"
 )
 
 // Run executes the benchmark described by cfg.
