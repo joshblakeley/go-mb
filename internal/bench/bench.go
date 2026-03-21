@@ -35,9 +35,16 @@ func Run(ctx context.Context, cfg *config.Config) error {
 		}
 	}
 
+	// expectedIntervalMicros is the per-producer send cadence used for coordinated
+	// omission correction. We use the per-producer rate (not aggregate) because each
+	// goroutine corrects its own stall independently — a stall in one goroutine does
+	// not imply missed sends in the others.
 	var expectedIntervalMicros int64
 	if cfg.ProduceRate > 0 {
 		expectedIntervalMicros = 1_000_000 / int64(cfg.ProduceRate)
+		if expectedIntervalMicros < 1 {
+			expectedIntervalMicros = 1 // clamp: rates above 1M msg/s round to 1µs minimum
+		}
 	}
 	rec := metrics.NewRecorder(expectedIntervalMicros)
 
