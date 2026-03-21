@@ -17,7 +17,7 @@ This is the same correction OMB applies. The math is equivalent; OMB works in na
 ## Scope
 
 - Correction applies when `--rate > 0`. When rate is unlimited (`--rate 0`), there is no expected interval and no correction is possible.
-- Correction applies to **both** publish latency and E2E latency histograms, using the same expected interval. Both are affected by producer stalls: consumers also receive no messages during a stall.
+- Correction applies to **both** publish latency and E2E latency histograms, using the same expected interval. The rationale for applying the producer's expected interval to consumer-side histograms: during a producer stall, the broker receives no new messages, so consumers also stop receiving. The phantom samples represent the messages that *would have arrived at consumers* at the expected send cadence had no stall occurred. This is the same reasoning OMB applies when correcting both histogram sides from the producer rate.
 - Throughput numbers (msg/s, MB/s, backlog) are unaffected — they use raw message counts.
 
 ## Changes
@@ -54,6 +54,20 @@ if cfg.ProduceRate > 0 {
 rec := metrics.NewRecorder(expectedIntervalMicros)
 ```
 
+## Files Updated (signature change propagation)
+
+`NewRecorder()` → `NewRecorder(expectedIntervalMicros int64)` breaks all existing callers. Pass `0` (no correction, matching current behaviour) in:
+
+- `internal/metrics/metrics_test.go` — every `NewRecorder()` call (6 sites)
+- `internal/producer/producer_test.go` — 1 site
+- `internal/consumer/consumer_test.go` — 2 sites
+
+`internal/bench/bench.go` has **two** `NewRecorder()` call sites:
+1. Main recorder creation (pre-warmup)
+2. Post-warmup reset: `rec = metrics.NewRecorder(...)` inside the warmup block
+
+Both must receive `expectedIntervalMicros`.
+
 ## Files Not Changed
 
 - `internal/producer/producer.go` — correction is transparent to call sites
@@ -76,7 +90,10 @@ Example: `--rate 1000` → expected interval = 1000 µs (1 ms). A 10 ms stall in
 
 **`internal/histogram/histogram_test.go`** — `TestRecordCorrectedValue`: record one value of 10000 µs with expected interval 1000 µs; assert `TotalCount() == 10` (1 real + 9 phantom samples).
 
-**`internal/metrics/metrics_test.go`** — `TestRecorderCorrectedSend`: create `NewRecorder(1000)`, call `RecordSend` with latency 5000 µs, snapshot, assert `PublishLatency.TotalCount() == 5`. `TestRecorderNoCorrectionWhenZeroInterval`: `NewRecorder(0)`, `RecordSend(latency=5000)`, assert `TotalCount() == 1`.
+**`internal/metrics/metrics_test.go`**:
+- `TestRecorderCorrectedSend`: `NewRecorder(1000)`, call `RecordSend(latency=5000 µs)`, snapshot, assert `PublishLatency.TotalCount() == 5` (1 real + 4 phantom). Also assert `cumPublish.TotalCount() == 5` to verify both period and cumulative histograms are corrected.
+- `TestRecorderCorrectedReceive`: `NewRecorder(1000)`, call `RecordReceive(e2eLatency=5000 µs)`, snapshot, assert `EndToEndLatency.TotalCount() == 5`.
+- `TestRecorderNoCorrectionWhenZeroInterval`: `NewRecorder(0)`, `RecordSend(latency=5000)`, assert `TotalCount() == 1` (no phantom samples).
 
 ## Behaviour Impact
 
