@@ -147,7 +147,13 @@ func Run(ctx context.Context, cfg *config.Config) error {
 				}()
 			}
 
+			// Workers start at rate 1; the ramp goroutine applies the first interpolated
+			// rate after 1 second. This is intentional — the first second acts as an
+			// additional soft start before the ramp begins.
 			producer.StartPool(wCtx, workers)
+			// wCtx has already expired here (StartPool returned because the context
+			// timed out), so the ramp goroutine will select wCtx.Done() immediately
+			// and exit without waiting for the next ticker fire.
 			wg.Wait()
 		} else {
 			// No rate limit — run workers at full speed during warmup.
