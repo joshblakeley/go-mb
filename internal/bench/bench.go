@@ -97,9 +97,65 @@ func Run(ctx context.Context, cfg *config.Config) error {
 	if cfg.WarmupDuration > 0 {
 		fmt.Printf("----- Warming up for %s -----\n", cfg.WarmupDuration)
 		wCtx, wCancel := context.WithTimeout(ctx, cfg.WarmupDuration)
-		runWorkers(wCtx, cfg, producerClient, consumerClient, rec)
-		wCancel()
-		// Reset metrics after warmup.
+		defer wCancel() // belt-and-suspenders: guards against future early returns
+
+		if cfg.ProduceRate > 0 {
+			// Linear ramp: create workers at rate 1, ramp to target over warmup duration.
+			workers := producer.NewPool(producerClient, rec, cfg.Producers, cfg.Topic, cfg.MessageSize, 1)
+
+			totalSteps := int(cfg.WarmupDuration.Seconds())
+			if totalSteps < 1 {
+				totalSteps = 1
+			}
+
+			var wg sync.WaitGroup
+
+			// Ramp goroutine: updates all worker rates every second.
+			// Tracked in wg to guarantee it exits before rec is replaced.
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				ticker := time.NewTicker(time.Second)
+				defer ticker.Stop()
+				step := 0
+				for {
+					select {
+					case <-ticker.C:
+						step++
+						currentRate := cfg.ProduceRate * step / totalSteps
+						if currentRate < 1 {
+							currentRate = 1
+						}
+						for _, w := range workers {
+							w.SetRate(currentRate)
+						}
+						if step >= totalSteps {
+							return
+						}
+					case <-wCtx.Done():
+						return
+					}
+				}
+			}()
+
+			// Consumer goroutine — no ramp needed; tracked in wg.
+			if cfg.Consumers > 0 {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					consumer.RunPool(wCtx, consumerClient, rec, cfg.Consumers)
+				}()
+			}
+
+			producer.StartPool(wCtx, workers)
+			wg.Wait()
+		} else {
+			// No rate limit — run workers at full speed during warmup.
+			runWorkers(wCtx, cfg, producerClient, consumerClient, rec)
+		}
+
+		wCancel() // eager release of timer resource
+		// Reset metrics after warmup so benchmark measurements are clean.
 		rec = metrics.NewRecorder(expectedIntervalMicros)
 	}
 
