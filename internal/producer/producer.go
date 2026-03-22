@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"sync"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -73,6 +74,31 @@ func NewWorker(sender Sender, rec *metrics.Recorder, topic string, messageSize i
 	return w
 }
 
+// Limiter returns the worker's rate limiter. May be nil if no rate was set.
+// Exposed for testing only.
+func (w *Worker) Limiter() *rate.Limiter {
+	return w.limiter
+}
+
+// SetRate updates the worker's rate limit dynamically.
+// Safe to call concurrently with Run — uses SetLimit/SetBurst which are
+// documented as goroutine-safe on rate.Limiter.
+// Precondition: w.limiter must be non-nil (worker created with produceRate > 0).
+// If r <= 0, sets the limiter to unlimited (rate.Inf) rather than nil,
+// avoiding a pointer write that would race with Run.
+func (w *Worker) SetRate(r int) {
+	if w.limiter == nil {
+		return
+	}
+	if r <= 0 {
+		w.limiter.SetLimit(rate.Inf)
+		w.limiter.SetBurst(1)
+		return
+	}
+	w.limiter.SetLimit(rate.Limit(r))
+	w.limiter.SetBurst(r)
+}
+
 // Run produces messages until ctx is cancelled.
 func (w *Worker) Run(ctx context.Context) {
 	for {
@@ -110,19 +136,32 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 }
 
+// NewPool creates n Workers without starting them.
+// Takes Sender (not *kgo.Client) to match NewWorker and preserve testability.
+func NewPool(sender Sender, rec *metrics.Recorder, n int, topic string, messageSize int, produceRate int) []*Worker {
+	workers := make([]*Worker, n)
+	for i := range workers {
+		workers[i] = NewWorker(sender, rec, topic, messageSize, produceRate)
+	}
+	return workers
+}
+
+// StartPool runs all workers concurrently and blocks until all have stopped.
+func StartPool(ctx context.Context, workers []*Worker) {
+	var wg sync.WaitGroup
+	for _, w := range workers {
+		w := w
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w.Run(ctx)
+		}()
+	}
+	wg.Wait()
+}
+
 // RunPool starts n Worker goroutines sharing a single kgo.Client and Recorder.
 // It blocks until all workers have stopped.
 func RunPool(ctx context.Context, client *kgo.Client, rec *metrics.Recorder, n int, topic string, messageSize int, produceRate int) {
-	done := make(chan struct{}, n)
-	for i := 0; i < n; i++ {
-		go func() {
-			w := NewWorker(client, rec, topic, messageSize, produceRate)
-			w.Run(ctx)
-			done <- struct{}{}
-		}()
-	}
-	for i := 0; i < n; i++ {
-		<-done
-	}
-	// reporter is the only package that writes to stdout; no print here.
+	StartPool(ctx, NewPool(client, rec, n, topic, messageSize, produceRate))
 }
