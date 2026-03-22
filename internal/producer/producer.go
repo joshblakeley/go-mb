@@ -74,16 +74,10 @@ func NewWorker(sender Sender, rec *metrics.Recorder, topic string, messageSize i
 	return w
 }
 
-// Limiter returns the worker's rate limiter. May be nil if no rate was set.
-// Exposed for testing only.
-func (w *Worker) Limiter() *rate.Limiter {
-	return w.limiter
-}
-
 // SetRate updates the worker's rate limit dynamically.
 // Safe to call concurrently with Run — uses SetLimit/SetBurst which are
 // documented as goroutine-safe on rate.Limiter.
-// Precondition: w.limiter must be non-nil (worker created with produceRate > 0).
+// If the worker has no rate limiter (created with produceRate=0), this is a no-op.
 // If r <= 0, sets the limiter to unlimited (rate.Inf) rather than nil,
 // avoiding a pointer write that would race with Run.
 func (w *Worker) SetRate(r int) {
@@ -150,7 +144,6 @@ func NewPool(sender Sender, rec *metrics.Recorder, n int, topic string, messageS
 func StartPool(ctx context.Context, workers []*Worker) {
 	var wg sync.WaitGroup
 	for _, w := range workers {
-		w := w
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
