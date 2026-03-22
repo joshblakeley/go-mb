@@ -5,6 +5,7 @@ A lightweight Kafka/Redpanda benchmarking tool written in Go. Measures publish l
 ## Features
 
 - Concurrent producers and consumers with configurable rate limiting
+- Linear warmup rate ramp (0 → target over warmup duration, matching OMB behaviour)
 - Coordinated omission correction (accurate latency under backpressure)
 - Interactive HTML reports with time-series charts
 - TLS (system CAs or custom CA cert) and SASL (PLAIN, SCRAM-SHA-256, SCRAM-SHA-512)
@@ -76,7 +77,7 @@ go-mb run [flags]
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--duration` | `-d` | `1m` | Benchmark duration |
-| `--warmup` | `-w` | `0` | Warmup period before recording (excluded from results) |
+| `--warmup` | `-w` | `0` | Warmup period (excluded from results); linearly ramps rate 0→target when `--rate` is set |
 | `--report-interval` | | `10s` | Periodic stats interval |
 
 ### Producer Tuning
@@ -111,8 +112,8 @@ go-mb run [flags]
 go-mb run --producers 4 --consumers 4 --partitions 4 \
   --compression zstd --acks 1 --duration 2m
 
-# Latency-focused: rate-limited, leader ack, HTML report
-go-mb run --rate 1000 --acks all --duration 60s --output report.html
+# Latency-focused: rate-limited with warmup ramp, HTML report
+go-mb run --rate 1000 --acks all --warmup 30s --duration 60s --output report.html
 
 # Against a TLS+SASL cluster
 go-mb run --brokers broker:9092 \
