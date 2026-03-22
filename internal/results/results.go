@@ -30,16 +30,26 @@ type DataPoint struct {
 }
 
 // RunMeta holds display-relevant config for the report header.
-// Operational fields (partitions, RF, consumer group, etc.) are intentionally excluded.
 type RunMeta struct {
-	Brokers        []string
-	Topic          string
-	Producers      int
-	Consumers      int
-	MessageSize    int
-	Duration       time.Duration
-	ReportInterval time.Duration
-	Timestamp      time.Time // benchmark start (after warmup)
+	Brokers           []string
+	Topic             string
+	Partitions        int
+	ReplicationFactor int
+	Producers         int
+	Consumers         int
+	MessageSize       int
+	ProduceRate       int // 0 = unlimited
+	Duration          time.Duration
+	ReportInterval    time.Duration
+	Timestamp         time.Time // benchmark start (after warmup)
+	// Producer tuning
+	Acks          string
+	Compression   string
+	LingerMs      int
+	BatchMaxBytes int // 0 = franz-go default
+	// Security
+	TLS           bool
+	SASLMechanism string // "" = none
 }
 
 // FinalSummary holds aggregated latency percentiles for the summary table.
@@ -126,13 +136,22 @@ func FinalSummaryFromSnapshot(snap metrics.Snapshot) FinalSummary {
 // benchmarkStart is the time the benchmark phase began (after warmup) — used as Timestamp.
 func RunMetaFromConfig(cfg *config.Config, benchmarkStart time.Time) RunMeta {
 	return RunMeta{
-		Brokers:        cfg.Brokers,
-		Topic:          cfg.Topic,
-		Producers:      cfg.Producers,
-		Consumers:      cfg.Consumers,
-		MessageSize:    cfg.MessageSize,
-		Duration:       cfg.Duration,
-		ReportInterval: cfg.ReportInterval,
-		Timestamp:      benchmarkStart,
+		Brokers:           cfg.Brokers,
+		Topic:             cfg.Topic,
+		Partitions:        cfg.Partitions,
+		ReplicationFactor: cfg.ReplicationFactor,
+		Producers:         cfg.Producers,
+		Consumers:         cfg.Consumers,
+		MessageSize:       cfg.MessageSize,
+		ProduceRate:       cfg.ProduceRate,
+		Duration:          cfg.Duration,
+		ReportInterval:    cfg.ReportInterval,
+		Timestamp:         benchmarkStart,
+		Acks:              cfg.Acks,
+		Compression:       cfg.Compression,
+		LingerMs:          cfg.LingerMs,
+		BatchMaxBytes:     cfg.BatchMaxBytes,
+		TLS:               cfg.TLS || cfg.TLSCACert != "",
+		SASLMechanism:     cfg.SASLMechanism,
 	}
 }

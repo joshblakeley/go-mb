@@ -30,15 +30,26 @@ type chartData struct {
 
 // templateVars is passed to the HTML template.
 type templateVars struct {
-	BrokersStr  string
-	Topic       string
-	Producers   int
-	Consumers   int
-	MessageSize int
-	Duration    string
-	Timestamp   string
-	Summary     FinalSummary
-	ChartJSON   template.JS // pre-marshalled JSON, safe to embed in <script>
+	BrokersStr        string
+	Topic             string
+	Partitions        int
+	ReplicationFactor int
+	Producers         int
+	Consumers         int
+	MessageSize       int
+	ProduceRate       string // "unlimited" or "N msg/s"
+	Duration          string
+	Timestamp         string
+	// Producer tuning
+	Acks          string
+	Compression   string
+	LingerMs      int
+	BatchMaxBytes string // "default" or "N bytes"
+	// Security
+	TLSStr  string // "enabled" or "disabled"
+	SASLStr string // mechanism or "none"
+	Summary FinalSummary
+	ChartJSON template.JS // pre-marshalled JSON, safe to embed in <script>
 }
 
 // WriteHTML renders a self-contained HTML report to path.
@@ -69,16 +80,42 @@ func WriteHTML(run *Run, path string) error {
 		return fmt.Errorf("marshal chart data: %w", err)
 	}
 
+	produceRate := "unlimited"
+	if run.Meta.ProduceRate > 0 {
+		produceRate = fmt.Sprintf("%d msg/s", run.Meta.ProduceRate)
+	}
+	batchMaxBytes := "default"
+	if run.Meta.BatchMaxBytes > 0 {
+		batchMaxBytes = fmt.Sprintf("%d bytes", run.Meta.BatchMaxBytes)
+	}
+	tlsStr := "disabled"
+	if run.Meta.TLS {
+		tlsStr = "enabled"
+	}
+	saslStr := "none"
+	if run.Meta.SASLMechanism != "" {
+		saslStr = run.Meta.SASLMechanism
+	}
+
 	vars := templateVars{
-		BrokersStr:  strings.Join(run.Meta.Brokers, ", "),
-		Topic:       run.Meta.Topic,
-		Producers:   run.Meta.Producers,
-		Consumers:   run.Meta.Consumers,
-		MessageSize: run.Meta.MessageSize,
-		Duration:    run.Meta.Duration.String(),
-		Timestamp:   run.Meta.Timestamp.Format("2006-01-02 15:04:05"),
-		Summary:     run.Summary,
-		ChartJSON:   template.JS(jsonBytes),
+		BrokersStr:        strings.Join(run.Meta.Brokers, ", "),
+		Topic:             run.Meta.Topic,
+		Partitions:        run.Meta.Partitions,
+		ReplicationFactor: run.Meta.ReplicationFactor,
+		Producers:         run.Meta.Producers,
+		Consumers:         run.Meta.Consumers,
+		MessageSize:       run.Meta.MessageSize,
+		ProduceRate:       produceRate,
+		Duration:          run.Meta.Duration.String(),
+		Timestamp:         run.Meta.Timestamp.Format("2006-01-02 15:04:05"),
+		Acks:              run.Meta.Acks,
+		Compression:       run.Meta.Compression,
+		LingerMs:          run.Meta.LingerMs,
+		BatchMaxBytes:     batchMaxBytes,
+		TLSStr:            tlsStr,
+		SASLStr:           saslStr,
+		Summary:           run.Summary,
+		ChartJSON:         template.JS(jsonBytes),
 	}
 
 	tmpl, err := template.New("report").Parse(reportTemplate)
@@ -133,12 +170,19 @@ tbody td:first-child { text-align: left; font-weight: 500; }
   <h1>go-mb Report</h1>
   <dl class="meta-grid">
     <dt>Brokers</dt><dd>{{.BrokersStr}}</dd>
-    <dt>Topic</dt><dd>{{.Topic}}</dd>
+    <dt>Topic</dt><dd>{{.Topic}} ({{.Partitions}} partitions, RF {{.ReplicationFactor}})</dd>
     <dt>Producers</dt><dd>{{.Producers}}</dd>
     <dt>Consumers</dt><dd>{{.Consumers}}</dd>
     <dt>Message Size</dt><dd>{{.MessageSize}} bytes</dd>
+    <dt>Produce Rate</dt><dd>{{.ProduceRate}}</dd>
     <dt>Duration</dt><dd>{{.Duration}}</dd>
     <dt>Timestamp</dt><dd>{{.Timestamp}}</dd>
+    <dt>Acks</dt><dd>{{.Acks}}</dd>
+    <dt>Compression</dt><dd>{{.Compression}}</dd>
+    <dt>Linger</dt><dd>{{.LingerMs}} ms</dd>
+    <dt>Batch Max</dt><dd>{{.BatchMaxBytes}}</dd>
+    <dt>TLS</dt><dd>{{.TLSStr}}</dd>
+    <dt>SASL</dt><dd>{{.SASLStr}}</dd>
   </dl>
 </div>
 <div class="charts">
